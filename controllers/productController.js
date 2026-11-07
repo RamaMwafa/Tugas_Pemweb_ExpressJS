@@ -1,60 +1,63 @@
-let products = [
-  { id: 1, name: "Buku", price: 15000 },
-  { id: 2, name: "Pulpen", price: 5000 },
-];
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
-exports.getAllProducts = (req, res) => {
-  res.status(200).json(products);
-};
-
-exports.getProductById = (req, res) => {
-  const productId = parseInt(req.params.id);
-  const product = products.find((p) => p.id === productId);
-
-  if (product) {
-    res.status(200).json(product);
-  } else {
-    res.status(404).json({ message: "produk tidak ditemukan" });
+exports.getAllProducts = async (req, res) => {
+  try {
+    const products = await prisma.product.findMany();
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ error: "Gagal mengambil data" });
   }
 };
 
-exports.createProduct = (req, res) => {
-  const { name, price } = req.body;
-
-  // Logika membuat ID baru (auto-increment sederhana)
-  const newId = products.length > 0 ? products[products.length - 1].id + 1 : 1;
-
-  const newProduct = {
-    id: newId,
-    name: name,
-    price: price,
-  };
-
-  products.push(newProduct);
-  res.status(201).json(newProduct);
+exports.getProductById = async (req, res) => {
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(req.params.id) },
+    });
+    if (product) return res.status(200).json(product);
+    res.status(404).json({ message: "Produk tidak ditemukan" });
+  } catch (error) {
+    res.status(500).json({ error: "Gagal mengambil data" });
+  }
 };
 
-exports.updateProduct = (req, res) => {
-  const productId = parseInt(req.params.id);
-  const productIndex = products.findIndex((p) => p.id === productId);
-
-  if (productIndex) {
+exports.createProduct = async (req, res) => {
+  try {
     const { name, price } = req.body;
-    products[productIndex] = { id: productId, name, price };
-    res.status(200).json(products[productIndex]);
-  } else {
-    res.status(404).json({ message: "produk tidak ditemukan" });
+    const newProduct = await prisma.product.create({
+      data: { name, price },
+    });
+    res.status(201).json(newProduct);
+  } catch (error) {
+    res.status(400).json({ error: "Gagal membuat produk, periksa input Anda" });
   }
 };
 
-exports.deleteProduct = (req, res) => {
-  const productId = parseInt(req.params.id);
-  const productIndex = products.findIndex((p) => p.id === productId);
+exports.updateProduct = async (req, res) => {
+  try {
+    // Sesuai instruksi, mengambil ID dari body
+    const { id, name, price } = req.body;
 
-  if (productIndex) {
-    products.splice(productIndex, 1);
-    res.status(200).json({ message: "produk berhasil dihapus" });
-  } else {
-    res.status(204).json({ message: "produk tidak ditemukan" });
+    if (!id) return res.status(400).json({ error: "ID wajib disertakan di body" });
+
+    const updatedProduct = await prisma.product.update({
+      where: { id: parseInt(id) },
+      data: { name, price },
+    });
+    res.status(200).json(updatedProduct);
+  } catch (error) {
+    res.status(404).json({ error: "Produk tidak ditemukan atau gagal diupdate" });
+  }
+};
+
+exports.deleteProduct = async (req, res) => {
+  try {
+    await prisma.product.delete({
+      where: { id: parseInt(req.params.id) },
+    });
+    res.status(200).json({ message: "Produk berhasil dihapus" });
+  } catch (error) {
+    res.status(404).json({ error: "Produk tidak ditemukan" });
   }
 };
